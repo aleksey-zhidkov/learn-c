@@ -188,7 +188,19 @@ void Database_debug(struct Connection *conn) {
         Address_print(cur);
     }
 }
-int main(int argc, char const *argv[]) {
+
+void Database_find(struct Connection *conn, char* key) {
+    int i = 0;
+    struct Database *db = conn->db;
+
+    for (i = 0; i < conn->db->rowsCount; i++) {
+        struct Address *cur = &db->rows[i];
+        if (strstr(cur->name, key)) {
+            Address_print(cur);
+        }
+    }
+}
+int main(int argc, char *argv[]) {
 	if (argc < 3) die("USAGE: ex16 <dbfile> <action> [action params]");
 
 	char *filename = argv[1];
@@ -236,6 +248,9 @@ int main(int argc, char const *argv[]) {
             Database_debug(conn);
             break;
 
+        case 'f':
+            Database_find(conn, argv[3]);
+            break;
 		default:
 			die("Invalid action, only: c=create, g=get, s=set, d=del, l=list");	
 	}
