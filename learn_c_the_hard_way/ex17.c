@@ -33,12 +33,42 @@ void die(const char *message) {
 }
 
 void Address_print(struct Address *addr) {
-    printf("%d %s %s\n", addr->id, addr->name, addr->email);   
+    printf("%d %p:%s %p:%s\n", addr->id, addr->name, addr->name, addr->email, addr->email);   
 }
 
 void Database_load(struct Connection *conn) {
-    int rc = fread(conn->db, sizeof(struct Database), 1,conn->file);
+    int rc;
+
+    rc = fread(&(conn->db->rowsCount), sizeof(int), 1, conn->file);
     if (rc != 1) die("Failded to load database");   
+
+    rc = fread(&(conn->db->dataLen), sizeof(int), 1, conn->file);
+    if (rc != 1) die("Failded to load database");   
+
+    printf("%d %d\n", conn->db->rowsCount, conn->db->dataLen);
+
+    conn->db->rows = calloc(conn->db->rowsCount, sizeof(struct Address));
+    if (!conn->db->rows) die("Memory error");
+    int i;
+    for (i = 0; i < conn->db->rowsCount; i++) {
+        rc = fread(&(conn->db->rows[i].id), sizeof(int), 1, conn->file);
+        if (rc != 1) die("Failded to load database");   
+
+        rc = fread(&(conn->db->rows[i].set), sizeof(int), 1, conn->file);
+        if (rc != 1) die("Failded to load database");   
+
+        conn->db->rows[i].name = calloc(conn->db->dataLen, sizeof(char));
+        if (!conn->db->rows[i].name) die("Memory error");
+        conn->db->rows[i].email = calloc(conn->db->dataLen, sizeof(char));
+        if (!conn->db->rows[i].email) die("Memory error");
+        if (conn->db->rows[i].set) {
+            rc = fread(conn->db->rows[i].name, sizeof(char), conn->db->dataLen, conn->file);
+            if (rc != conn->db->dataLen) die("Failded to load database");   
+
+            rc = fread(conn->db->rows[i].email, sizeof(char), conn->db->dataLen, conn->file);
+            if (rc != conn->db->dataLen) die("Failded to load database");   
+        }
+    }
 }
 
 struct Connection* Database_open(const char *filename, char mode) {
@@ -64,6 +94,11 @@ struct Connection* Database_open(const char *filename, char mode) {
 
 void Database_close(struct Connection *conn) {
     if (conn) {
+        int i;
+        for (i = 0; i < conn->db->rowsCount; i++) {
+            if (conn->db->rows[i].name) free(conn->db->rows[i].name);
+            if (conn->db->rows[i].email) free(conn->db->rows[i].email);
+        }
     	if (conn->file) fclose(conn->file);
     	if (conn->db) free(conn->db);
     	free(conn);
@@ -78,6 +113,15 @@ void Database_write(struct Connection *conn) {
     rc = fwrite(&(conn->db->dataLen), sizeof(int), 1, conn->file);
     if (rc != 1) die("Failed to write database.");
 
+    int i;
+    for (i = 0; i < conn->db->rowsCount; ++i) {
+        fwrite(&(conn->db->rows[i].id), sizeof(int), 1, conn->file);
+        fwrite(&(conn->db->rows[i].set), sizeof(int), 1, conn->file);
+        if (conn->db->rows[i].set) {
+            fwrite(conn->db->rows[i].name, sizeof(char), conn->db->dataLen, conn->file);
+            fwrite(conn->db->rows[i].email, sizeof(char), conn->db->dataLen, conn->file);
+        }
+    }
     rc = fflush(conn->file);
     if (rc == -1) die("Cannot flush database.");
 }
@@ -89,8 +133,8 @@ void Database_create(struct Connection *conn, int rowsCount, int dataLen) {
     int i = 0;
     for (i = 0; i < conn->db->rowsCount; i++) {
     	struct Address addr = {.id = i, .set = 0};
-        addr.name = malloc(sizeof(char) * dataLen);
-        addr.email = malloc(sizeof(char) * dataLen);
+        addr.name = calloc(conn->db->dataLen, sizeof(char));
+        addr.email = calloc(conn->db->dataLen, sizeof(char));
     	conn->db->rows[i] = addr;
     }
 }
@@ -135,6 +179,15 @@ void Database_list(struct Connection *conn) {
     }
 }
 
+void Database_debug(struct Connection *conn) {
+    int i = 0;
+    struct Database *db = conn->db;
+
+    for (i = 0; i < conn->db->rowsCount; ++i) {
+        struct Address *cur = &db->rows[i];
+        Address_print(cur);
+    }
+}
 int main(int argc, char const *argv[]) {
 	if (argc < 3) die("USAGE: ex16 <dbfile> <action> [action params]");
 
@@ -142,9 +195,6 @@ int main(int argc, char const *argv[]) {
 	char action = argv[2][0];
 	struct Connection *conn = Database_open(filename, action);
 	int id = 0;
-
-	// todo: if (argc > 3) id = atoi(argv[3]);
-	// todo: if (id >= conn->db->rowsCount) die("There's not that many rows");
 
     int rowsCount, dataLen;
     switch (action) {
@@ -156,11 +206,15 @@ int main(int argc, char const *argv[]) {
 			break;
 
 		case 'g':
+            id = atoi(argv[3]);
+            if (id >= conn->db->rowsCount) die("There's not that many rows");
 			if (argc != 4) die("Need an id to get");
 			Database_get(conn, id);
 			break;
 
 		case 's':
+            id = atoi(argv[3]);
+            if (argc > 3) id = atoi(argv[3]);
 			if (argc != 6) die("Need id, name, email to set");
 			Database_set(conn, id, argv[4], argv[5]);
 			Database_write(conn);
@@ -168,6 +222,8 @@ int main(int argc, char const *argv[]) {
 
 		case 'd':
 			if (argc != 4) die("Need id to delete");
+            id = atoi(argv[3]);
+            if (id >= conn->db->rowsCount) die("There's not that many rows");
 			Database_delete(conn, id);
 			Database_write(conn);
 			break;
@@ -175,6 +231,10 @@ int main(int argc, char const *argv[]) {
 		case 'l':
 			Database_list(conn);
 			break;
+
+        case 'b':
+            Database_debug(conn);
+            break;
 
 		default:
 			die("Invalid action, only: c=create, g=get, s=set, d=del, l=list");	
