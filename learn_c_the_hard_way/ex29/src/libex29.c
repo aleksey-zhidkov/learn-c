@@ -4,6 +4,7 @@
 
 int print_a_message(const char *msg) {
     printf("A STRING: %s\n", msg);
+    return 0;
 }
 
 int uppercase(const char *msg, int len) {
