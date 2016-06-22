@@ -28,8 +28,8 @@ void List_clear_destroy(List *list) {
     LIST_FOREACH(list, first, next, cur) {
     	if (cur->prev) {
     		free(cur->prev);
-			free(cur->value);
     	}
+		free(cur->value);
     }
     free(list->last);
     free(list);
@@ -119,7 +119,22 @@ error:
 	return result;
 }
 
-int List_index_of(List *list, void *e, compare cmp) {
+int List_swap_forward(List *list, ListNode* node) {
+	check(node, "Node can't be NULL");
+	if (node->next == NULL) {
+		return -1;
+	}
+
+	void* tmp = node->next->value;
+	node->next->value = node->value;
+	node->value = tmp;
+	
+	return 1;
+error:
+	return -1;
+}
+
+int List_index_of(List *list, void *e, List_compare cmp) {
 	int idx = 0;
     LIST_FOREACH(list, first, next, cur) {
     	if (cmp(&cur->value, &e) == 0) {
@@ -128,4 +143,23 @@ int List_index_of(List *list, void *e, compare cmp) {
     	idx++;
     }
     return -1;
+}
+
+List *List_sublist(List *list, int from, int size) {
+	check(from + size <= list->count, "from + size (%d+%d) greater than list size %d", from, size, list->count);
+
+	int i;
+	ListNode *fromNode = list->first;
+	for (i = 0; i < from; i++) {
+		fromNode = fromNode->next;
+	}
+	List *sublist = List_create();
+	for (i = 0; i < size; i++) {
+		List_push(sublist, fromNode->value);
+		fromNode = fromNode->next;
+	}
+
+	return sublist;
+error:
+    return NULL;
 }

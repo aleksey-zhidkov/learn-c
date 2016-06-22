@@ -17,7 +17,7 @@ typedef struct List {
 	ListNode *last;
 } List;
 
-typedef int (compare)(void *a, void *b);
+typedef int (List_compare)(void *a, void *b);
 
 List *List_create();
 void List_Destroy(List *list);
@@ -36,7 +36,11 @@ void *List_shift(List *list);
 
 void *List_remove(List *list, ListNode *node);
 
-int List_index_of(List *list, void *e, compare cmp);
+int List_swap_forward(List *list, ListNode *node);
+
+int List_index_of(List *list, void *e, List_compare cmp);
+
+List *List_sublist(List *list, int from, int size);
 
 #define LIST_FOREACH(L, S, M, V) ListNode *_node = NULL;\
     ListNode *V = NULL;\
