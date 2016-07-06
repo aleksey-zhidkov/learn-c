@@ -1,5 +1,6 @@
-CFLAGS=-g -O2 -Wall -Wextra -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
-LDLIBS=-ldl $(OPTLIBS)
+CFLAGS=-g -O2 -Wall -Wextra -Isrc $(shell pkg-config --cflags libbsd) -rdynamic -DNDEBUG $(OPTFLAGS)
+COMMON_LIBS = $(shell pkg-config --libs libbsd) -ldl $(OPTLIBS)
+LDLIBS=$(COMMON_LIBS)
 PREFIX?=/usr/local
 
 SOURCES=$(wildcard src/**/*.c src/*.c)
@@ -13,7 +14,7 @@ SO_TARGET=$(patsubst %.a,%.so,$(TARGET))
 
 # The Target Build
 all: $(TARGET) $(SO_TARGET) tests
-dev: CFLAGS=-g -Wall -Isrc -Wall -Wextra $(OPTFLAGS)
+dev: CFLAGS=-g -Wall -Wextra -Isrc $(shell pkg-config --cflags libbsd) $(OPTFLAGS)
 dev: all
 
 $(TARGET): CFLAGS += -fPIC
@@ -30,7 +31,7 @@ build:
 
 # The Unit Tests
 .PHONY: tests
-tests: LDLIBS += $(TARGET)
+tests: LDLIBS = $(TARGET) $(COMMON_LIBS)
 tests: $(TESTS)
 	sh ./tests/runtests.sh
 

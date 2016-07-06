@@ -50,7 +50,7 @@ error:
 
 int DArray_expand(DArray *array) {
 	size_t old_max = array->max;
-	check(Darray_resize(array, array->max + array->expand_rate),
+	check(DArray_resize(array, array->max + array->expand_rate),
 		"Failed to expand array to new size: %d",
 		array->max + (int)array->expand_rate);
 
